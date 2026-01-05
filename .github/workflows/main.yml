@@ -46,15 +46,7 @@ jobs:
           template: ${{ env.BICEP_FILE }}
           deploymentName: bicep-${{ github.run_number }}
           parameters: >
-            location=${{ env.AZURE_LOCATION }}
-            webAppName=${{ secrets.WEB_APP_NAME }}
-            sqlServerName=${{ secrets.SQL_SERVER_NAME }}
-            sqlDatabaseName=${{ secrets.SQL_DATABASE_NAME }}
-            sqlAdminLogin=${{ secrets.SQL_ADMIN_LOGIN }}
-            sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
-            keyVaultName=${{ secrets.KEYVAULT_NAME }}
-            afdProfileName=${{ secrets.AFD_PROFILE_NAME }}
-            afdEndpointName=${{ secrets.AFD_ENDPOINT_NAME }}
+            
 
       - name: Display Deployment Outputs
         uses: azure/cli@v2

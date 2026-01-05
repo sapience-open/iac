@@ -12,7 +12,7 @@ env:
   RESOURCE_GROUP: rg-sapience-app-prod
 
   # Path to your Bicep file
-  BICEP_FILE: infra/main.bicep
+  BICEP_FILE: Ntier/infra.bicep
 
 jobs:
   deploy:

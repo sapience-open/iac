@@ -2,23 +2,23 @@
 param location string = resourceGroup().location
 
 @description('Name of the Web App (must be globally unique).')
-param webAppName string
+param webAppName string = 'myntierwebapp${uniqueString(resourceGroup().id)}'
 
 @description('Name of the App Service Plan.')
 param appServicePlanName string = '${webAppName}-plan'
 
 @description('SQL Server name (must be globally unique).')
-param sqlServerName string
+param sqlServerName string = 'myntiersqlserver${uniqueString(resourceGroup().id)}'
 
 @description('SQL Database name.')
 param sqlDatabaseName string = '${sqlServerName}-db'
 
 @description('SQL admin username.')
-param sqlAdminLogin string
+param sqlAdminLogin string = 'sqladminuser'
 
 @secure()
 @description('SQL admin password.')
-param sqlAdminPassword string
+param sqlAdminPassword string = 'P@ssw0rd!23' // Replace with a more secure password in production
 
 @description('Key Vault name (must be globally unique).')
 param keyVaultName string = '${webAppName}-kv'

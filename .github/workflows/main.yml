@@ -1,0 +1,67 @@
+name: Deploy Azure (Bicep)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required for OIDC login
+  contents: read
+
+env:
+  AZURE_LOCATION: westeurope
+  RESOURCE_GROUP: rg-sapience-app-prod
+
+  # Path to your Bicep file
+  BICEP_FILE: infra/main.bicep
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Recommended: OIDC-based login (no secrets for credentials)
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create or Update Resource Group
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az group create \
+              --name "${{ env.RESOURCE_GROUP }}" \
+              --location "${{ env.AZURE_LOCATION }}"
+
+      - name: Deploy Bicep Template
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: ${{ env.BICEP_FILE }}
+          deploymentName: bicep-${{ github.run_number }}
+          parameters: >
+            location=${{ env.AZURE_LOCATION }}
+            webAppName=${{ secrets.WEB_APP_NAME }}
+            sqlServerName=${{ secrets.SQL_SERVER_NAME }}
+            sqlDatabaseName=${{ secrets.SQL_DATABASE_NAME }}
+            sqlAdminLogin=${{ secrets.SQL_ADMIN_LOGIN }}
+            sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
+            keyVaultName=${{ secrets.KEYVAULT_NAME }}
+            afdProfileName=${{ secrets.AFD_PROFILE_NAME }}
+            afdEndpointName=${{ secrets.AFD_ENDPOINT_NAME }}
+
+      - name: Display Deployment Outputs
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az deployment group show \
+              --resource-group "${{ env.RESOURCE_GROUP }}" \
+              --name "bicep-${{ github.run_number }}" \
+              --query "properties.outputs" \
+              --output json

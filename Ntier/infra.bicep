@@ -18,10 +18,10 @@ param sqlAdminLogin string = 'sqladminuser'
 
 @secure()
 @description('SQL admin password.')
-param sqlAdminPassword string = 'P@ssw0rd!23' // Replace with a more secure password in production
+param sqlAdminPassword string
 
 @description('Key Vault name (must be globally unique).')
-param keyVaultName string = '${webAppName}-kv'
+param keyVaultName string = 'sapiewebapp-kv'
 
 @description('Key Vault secret name to store the SQL connection string.')
 param sqlConnectionSecretName string = 'SqlConnectionString'
@@ -55,7 +55,11 @@ var afdSkuName = 'Standard_AzureFrontDoor'
 var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
 
 // SQL connection string (ADO.NET-style). Adjust to your app needs if required.
-var sqlConnectionString = 'Server=tcp:${sqlServerName}.database.windows.net,1433;Initial Catalog=${sqlDatabaseName};Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+//var sqlConnectionString = 'Server=tcp:${sqlServerName}.database.windows.net,1433;Initial Catalog=${sqlDatabaseName};Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+
+var sqlServerFqdn = '${sqlServerName}.${environment().suffixes.sqlServerHostname}'
+
+var sqlConnectionString = 'Server=tcp:${sqlServerFqdn},1433;Initial Catalog=${sqlDatabaseName};Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
 
 // -------------------------
 // App Service Plan + Web App (Managed Identity)
@@ -175,7 +179,7 @@ resource kvSecretsUserAssignment 'Microsoft.Authorization/roleAssignments@2022-0
 // -------------------------
 // Azure Front Door (Standard) - global, but in same RG
 // -------------------------
-resource afdProfile 'Microsoft.Cdn/profiles@2024-05-01' = {
+resource afdProfile 'Microsoft.Cdn/profiles@2024-05-01-preview' = {
   name: afdProfileName
   location: 'global'
   sku: {
@@ -183,7 +187,7 @@ resource afdProfile 'Microsoft.Cdn/profiles@2024-05-01' = {
   }
 }
 
-resource afdEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-05-01' = {
+resource afdEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-05-01-preview' = {
   parent: afdProfile
   name: afdEndpointName
   location: 'global'
@@ -192,7 +196,7 @@ resource afdEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-05-01' = {
   }
 }
 
-resource originGroup 'Microsoft.Cdn/profiles/originGroups@2024-05-01' = {
+resource originGroup 'Microsoft.Cdn/profiles/originGroups@2024-05-01-preview' = {
   parent: afdProfile
   name: '${webAppName}-og'
   properties: {
@@ -211,7 +215,7 @@ resource originGroup 'Microsoft.Cdn/profiles/originGroups@2024-05-01' = {
   }
 }
 
-resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2024-05-01' = {
+resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2024-05-01-preview' = {
   parent: originGroup
   name: '${webAppName}-origin'
   properties: {
@@ -225,9 +229,13 @@ resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2024-05-01' = {
   }
 }
 
-resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-05-01' = {
+resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-05-01-preview' = {
   parent: afdEndpoint
   name: '${webAppName}-route'
+  dependsOn: [
+    origin
+
+  ]
   properties: {
     originGroup: {
       id: originGroup.id
@@ -246,12 +254,14 @@ resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-05-01' = {
   }
 }
 
+
+
 // -------------------------
 // Outputs
 // -------------------------
 output webAppUrl string = 'https://${webApp.properties.defaultHostName}'
 output webAppManagedIdentityPrincipalId string = webApp.identity.principalId
-output sqlServerFqdn string = '${sqlServerName}.database.windows.net'
+output sqlServerFqdn string = sqlServerFqdn
 output sqlDbResourceId string = sqlDb.id
 output keyVaultUri string = keyVault.properties.vaultUri
 output sqlConnSecretUriWithVersion string = sqlConnSecret.properties.secretUriWithVersion
